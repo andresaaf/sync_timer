@@ -22,7 +22,7 @@
             var log = document.getElementById("log");
 
             if (window["WebSocket"]) {
-                conn = new WebSocket("ws://" + document.location.host + "/timer");
+                conn = new WebSocket("ws://" + document.location.host + "/ws");
                 conn.onclose = function (evt) {
                     //item.innerHTML = "<b>Connection closed.</b>";
                 };
@@ -33,9 +33,7 @@
                     console.log(evt.data)
                 };
             } else {
-                var item = document.createElement("div");
-                item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
-                appendLog(item);
+                console.log("Your browser does not support WebSockets.");
             }
         };
     </script>
@@ -110,15 +108,15 @@
         </ul>
     </div>
 
-    <main id="main" class="w-100 m-auto">
-        <div class="progress">
-            <h1 class="h3 mb-3 fw-normal">Timer 1</h1>
-            <div class="progress-bar" role="progressbar" style="width: 33%;" aria-valuenow="33" aria-valuemin="0"
-                aria-valuemax="100">33%</div>
+    <main id="main" class="m-auto w-75 h-100">
+        <div class="row mb-3 text-center">
+            <div class="col-lg-1 themed-grid-col">Timer 1</div>
         </div>
-        <div class="progress">
-            <h1 class="h3 mb-3 fw-normal">Timer 2</h1>
-            <progress class="progress-bar w-100" value="25" max="100"> 25 % </progress>
+        <div class="row mb-3 text-center">
+            <div class="progress">
+                <div class="progress-bar" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0"
+                    aria-valuemax="100">25%</div>
+            </div>
         </div>
     </main>
 

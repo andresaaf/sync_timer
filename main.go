@@ -2,11 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -17,22 +15,9 @@ type JoinRequest struct {
 	Room string
 }
 
-type Timer struct {
-	Name  string
-	Time  uint
-	Start uint
-}
-
-type Room struct {
-	Id     string
-	Users  map[string]*websocket.Conn
-	Timers []Timer
-}
-
 var upgrader = websocket.Upgrader{} // use default options
-var rooms = make(map[string]Room)
 
-func serveTimer(w http.ResponseWriter, r *http.Request) {
+func serveWebsocket(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
@@ -62,35 +47,8 @@ func serveTimer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, ok := rooms[in_room]
-	if !ok {
-		// Create room
-		rooms[in_room] = Room{Id: in_room, Users: make(map[string]*websocket.Conn), Timers: []Timer{}}
-		room = rooms[in_room]
-	}
-
-	// Send current timers
-	for i := 0; i < len(room.Timers); i++ {
-		c.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("timeri %s %d, %d", room.Timers[i].Name, room.Timers[i].Time, room.Timers[i].Start)))
-	}
-
-	// Send users and notify users
-	join_str := []byte(fmt.Sprintf("join %s", in_user))
-	var sb strings.Builder
-	sb.WriteString("users ")
-	sb.WriteString(strconv.Itoa(len(room.Users)))
-	sb.WriteString(" ")
-	for name, conn := range room.Users {
-		conn.WriteMessage(websocket.TextMessage, join_str)
-		sb.WriteString(name)
-		sb.WriteString(",")
-	}
-	user_str := sb.String()
-	user_str = user_str[:len(user_str)-1]
-	c.WriteMessage(websocket.TextMessage, []byte(user_str))
-
-	// Append user
-	room.Users[in_user] = c
+	room := getRoom(in_room)
+	room.AddUser(in_user, c)
 
 	// Handle messages from user
 	for {
@@ -99,7 +57,30 @@ func serveTimer(w http.ResponseWriter, r *http.Request) {
 			log.Println("read:", err)
 			break
 		}
+
 		log.Printf("recv: %s", message)
+		msg := strings.Split(string(message), " ")
+		if len(msg) == 0 {
+			continue
+		}
+		switch msg[0] {
+		case "start", "reset":
+			if len(msg) == 1 {
+				continue
+			}
+			room.StartTimer(msg[1])
+		case "stop":
+			if len(msg) == 1 {
+				continue
+			}
+			room.StopTimer(msg[1])
+		case "new":
+			if len(msg) == 1 {
+				continue
+			}
+			room.CreateTimer(msg[1])
+		}
+
 		err = c.WriteMessage(mt, message)
 		if err != nil {
 			log.Println("write:", err)
@@ -108,16 +89,7 @@ func serveTimer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Remove user
-	delete(room.Users, in_user)
-
-	if len(room.Users) == 0 {
-		// Remove room
-		delete(rooms, in_room)
-	} else {
-		for _, conn := range room.Users {
-			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("leave %s", in_user)))
-		}
-	}
+	room.RemoveUser(in_user)
 }
 
 func serveRoom(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +133,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	log.SetFlags(0)
-	http.HandleFunc("/timer", serveTimer)
+	http.HandleFunc("/ws", serveWebsocket)
 	http.HandleFunc("/room", serveRoom)
 	http.HandleFunc("/", serveHome)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets/"))))
