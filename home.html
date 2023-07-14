@@ -21,12 +21,7 @@
                 localStorage.setItem("name", $("#nameInput").val());
             });
 
-            if ($("#nameInput").val() == "") {
-                $("#nameInput").focus();
-            }
-            else {
-                $("#roomInput").focus();
-            }
+            $("#nameInput").focus();
         });
     </script>
 </head>
@@ -108,11 +103,7 @@
                 <input type="text" class="form-control" name="name" id="nameInput" placeholder="Name">
                 <label for="nameInput">Name</label>
             </div>
-            <div class="form-floating">
-                <input class="form-control pinEntry" name="room" type="text" maxlength="4" autocomplete="off" placeholder="Room#">
-                <label for="roomInput">Room#</label>
-            </div>
-            <button class="btn btn-primary w-100 py-2" name="roomInput" type="submit">Sign in</button>
+            <button class="btn btn-primary w-100 py-2" name="roomInput" type="submit">Create New Room</button>
         </form>
     </main>
 

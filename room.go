@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -24,17 +25,40 @@ type Room struct {
 	Timers map[string]Timer
 }
 
-var rooms = make(map[string]Room)
+var rooms map[string]Room
 
-func getRoom(room string) Room {
+func initRooms() {
+	rand.Seed(time.Now().UnixNano())
+	rooms = make(map[string]Room)
+
+	// TODO: Load from DB
+}
+
+func getRoom(room string) (Room, bool) {
 	r, found := rooms[room]
-	if !found {
-		// Create room
-		new_room := Room{Id: room, Users: make(map[string]Connection), Timers: make(map[string]Timer)}
-		rooms[room] = new_room
-		return new_room
+	return r, found
+}
+
+var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+
+func CreateRoom() Room {
+	// Generate name
+	name := ""
+	for {
+		b := make([]rune, 5)
+		for i := range b {
+			b[i] = letters[rand.Intn(len(letters))]
+		}
+		name = string(b)
+		if _, found := rooms[name]; !found {
+			break
+		}
 	}
-	return r
+
+	// Create room
+	new_room := Room{Id: name, Users: make(map[string]Connection), Timers: make(map[string]Timer)}
+	rooms[name] = new_room
+	return new_room
 }
 
 func (room *Room) AddUser(user string, conn Connection) {
