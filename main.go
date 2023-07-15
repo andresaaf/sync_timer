@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -113,6 +114,8 @@ func serveRoom(w http.ResponseWriter, r *http.Request) {
 	if !found {
 		if room_name == "" {
 			room = CreateRoom()
+			http.Redirect(w, r, room.Id, http.StatusTemporaryRedirect)
+			return
 		} else {
 			http.Error(w, "Room does not exist", http.StatusBadRequest)
 			return
@@ -139,13 +142,14 @@ func serveRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := r.FormValue("name")
-	if name == "" {
-		http.Error(w, "Empty name", http.StatusBadRequest)
+	match, err := regexp.MatchString("^[A-Za-z0-9]{1,12}$", name)
+	if name == "" || err != nil || !match {
+		http.Error(w, "Invalid name", http.StatusBadRequest)
 		return
 	}
 
 	// Show room
-	tmpl, err := template.ParseFiles("timer.html")
+	tmpl, err := template.ParseFiles("room.html")
 	if err != nil {
 		panic(err)
 	}
