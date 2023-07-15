@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -71,9 +70,7 @@ func (room *Room) AddUser(user string, conn Connection) {
 	// Send users and notify users
 	join_str := []byte(fmt.Sprintf("join %s", user))
 	var sb strings.Builder
-	sb.WriteString("users ")
-	sb.WriteString(strconv.Itoa(len(room.Users)))
-	sb.WriteString(" ")
+	sb.WriteString(fmt.Sprintf("users %d ", len(room.Users)))
 	for name, c := range room.Users {
 		c.WriteMessage(websocket.TextMessage, join_str)
 		sb.WriteString(name)
