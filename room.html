@@ -16,10 +16,33 @@
         integrity="sha256-tG5mcZUtJsZvyKAxYLVXrmjKBVLd6VpVccqz/r4ypFE=" crossorigin="anonymous"></script>
 
     <script type="text/javascript">
+        const TimerItem = ({ name, time, run }) => `
+            <div id="tim_${name}">
+                <div class="row mb-3">
+                    <div class="h1">${name}</div>
+                    <div class="h2">
+                        <svg class="bi" width="1em" height="1em">
+                            <use href="#play"></use>
+                        </svg>
+                        <svg class="bi" width="1em" height="1em">
+                            <use href="#reset"></use>
+                        </svg>
+                    </div>
+                </div>
+                <div class="row mb-3 text-center">
+                    <div class="progress position-relative">
+                        <div class="progress-bar" data-run="${run}" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="${time}"></div>
+                        <small class="justify-content-center d-flex position-absolute w-100">${time}</small>
+                    </div>                
+                </div>
+            </div>
+            `;
+
         window.onload = function () {
             var conn;
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
+            var sync = 0;
 
             if (window["WebSocket"]) {
                 conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
@@ -31,10 +54,79 @@
                 };
                 conn.onmessage = function (evt) {
                     console.log(evt.data);
+                    const msg = evt.data.split(' ');
+                    if (msg.length == 0) return;
+                    switch (msg[0]) {
+                        case "join":
+                        case "part":
+                            console.log("User join/leave")
+                            break;
+                        case "sync":
+                            if (msg.length == 1) return;
+                            let sync_time = parseInt(msg[1]);
+                            sync = Math.floor(Date.now() / 1000) - sync_time;
+                            console.log("diff: ", sync)
+                            break;
+                        case "timer":
+                            if (msg.length < 4) return;
+                            if ($("#" + msg[3]).length != 0) { console.log("Error! Timer already exists"); }
+                            var timer_time = parseInt(msg[1]);
+                            var timer_start = parseInt(msg[2]);
+                            $("#timer_list").append(TimerItem({ name: msg[3], time: timer_time, run: timer_start }));
+
+                            $("#tim_" + msg[3] + " svg").on('click', function (ev) {
+                                let func = $(this).children().first().attr('href');
+                                switch (func) {
+                                    case "#play":
+                                    case "#reset":
+                                        conn.send("start " + msg[3]);
+                                        break;
+                                    case "#stop":
+                                        conn.send("stop " + msg[3]);
+                                        break;
+                                }
+                            });
+                            break;
+                        case "del":
+                            if (msg.length == 1) return;
+                            $("#tim_" + msg[1]).remove();
+                            break;
+                        case "set":
+                            if (msg.length < 2) return;
+                            var timer_time = parseInt(msg[1]);
+                            $("#tim_" + msg[2] + " > .progress-bar").attr('aria-valuemax', timer_time);
+                            break;
+                        case "start":
+                            if (msg.length < 3) return;
+                            var timer_start = parseInt(msg[1]);
+                            $("#tim_" + msg[2] + " > .progress-bar").data('run', timer_start);
+                            break;
+                        case "stop":
+                            if (msg.length == 1) return;
+                            $("#tim_" + msg[1] + " > .progress-bar").data('run', 0);
+                            break;
+                    }
                 };
             } else {
                 console.log("Your browser does not support WebSockets.");
             }
+
+            function timer_handler() {
+                $(".progress-bar").each(function () {
+                    if ($(this).data('run') != 0) {
+                        let now = Math.floor(Date.now() / 1000);
+                        let remaining = now - timer_start;
+                        if (remaining > 0) {
+                            let min = remaining / 60;
+                            let sec = remaining % 60;
+                            $(this).css("width", 100 * (remaining / $(this).attr("aria-valuemax")));
+                            $(this).attr("aria-valuenow", remaining);
+                            $(this).siblings("small").first().html(min + ":" + sec);
+                        }
+                    }
+                });
+            }
+            setInterval(timer_handler, 100);
         };
     </script>
 </head>
@@ -108,15 +200,22 @@
         </ul>
     </div>
 
-    <main id="main" class="m-auto w-75 h-100">
-        <div class="row mb-3 text-center">
-            <div class="col-lg-1 themed-grid-col">Timer 1</div>
-        </div>
-        <div class="row mb-3 text-center">
-            <div class="progress">
-                <div class="progress-bar" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0"
-                    aria-valuemax="100">25%</div>
-            </div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-circle-fill">
+        <symbol id="play" viewBox="0 0 16 16">
+            <path
+                d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z" />
+        </symbol>
+        <symbol id="stop" viewBox="0 0 16 16">
+            <path
+                d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.5 5A1.5 1.5 0 0 0 5 6.5v3A1.5 1.5 0 0 0 6.5 11h3A1.5 1.5 0 0 0 11 9.5v-3A1.5 1.5 0 0 0 9.5 5h-3z" />
+        </symbol>
+        <symbol id="reset" viewBox="0 0 16 16">
+            <path
+                d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-4.79-2.907L8.5 7.028V5.5a.5.5 0 0 0-.79-.407L5 7.028V5.5a.5.5 0 0 0-1 0v5a.5.5 0 0 0 1 0V8.972l2.71 1.935a.5.5 0 0 0 .79-.407V8.972l2.71 1.935A.5.5 0 0 0 12 10.5v-5a.5.5 0 0 0-.79-.407z" />
+        </symbol>
+    </svg>
+    <main id="main" class="m-auto w-25 h-100">
+        <div id="timer_list">
         </div>
     </main>
 

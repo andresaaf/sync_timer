@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -60,10 +61,11 @@ func serveWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	// Join
 	room.AddUser(in_user, c)
+	defer room.RemoveUser(in_user)
 
 	// Handle messages from user
 	for {
-		mt, message, err := c.ReadMessage()
+		_, message, err := c.ReadMessage()
 		if err != nil {
 			log.Println("read:", err)
 			break
@@ -89,18 +91,30 @@ func serveWebsocket(w http.ResponseWriter, r *http.Request) {
 			if len(msg) == 1 {
 				continue
 			}
-			room.CreateTimer(msg[1])
-		}
-
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
+			dur, err := strconv.Atoi(msg[1])
+			if err != nil {
+				return
+			}
+			room.CreateTimer(msg[2], uint32(dur))
+			break
+		case "del":
+			if len(msg) == 1 {
+				continue
+			}
+			room.RemoveTimer(msg[1])
+			break
+		case "set":
+			if len(msg) < 2 {
+				continue
+			}
+			dur, err := strconv.Atoi(msg[1])
+			if err != nil {
+				return
+			}
+			room.SetTime(msg[2], uint32(dur))
 			break
 		}
 	}
-
-	// Remove user
-	room.RemoveUser(in_user)
 }
 
 func serveRoom(w http.ResponseWriter, r *http.Request) {
