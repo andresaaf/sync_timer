@@ -94,16 +94,15 @@
                         case "set":
                             if (msg.length < 2) return;
                             var timer_time = parseInt(msg[1]);
-                            $("#tim_" + msg[2] + " > .progress-bar").attr('aria-valuemax', timer_time);
+                            $("#tim_" + msg[2] + " .progress-bar").attr('aria-valuemax', timer_time);
                             break;
                         case "start":
                             if (msg.length < 3) return;
-                            var timer_start = parseInt(msg[1]);
-                            $("#tim_" + msg[2] + " > .progress-bar").data('run', timer_start);
+                            $("#tim_" + msg[2] + " .progress-bar").data('run', parseInt(msg[1]));
                             break;
                         case "stop":
                             if (msg.length == 1) return;
-                            $("#tim_" + msg[1] + " > .progress-bar").data('run', 0);
+                            $("#tim_" + msg[1] + " .progress-bar").data('run', 0);
                             break;
                     }
                 };
@@ -113,20 +112,28 @@
 
             function timer_handler() {
                 $(".progress-bar").each(function () {
+                    let timer_start = $(this).data('run');
                     if ($(this).data('run') != 0) {
                         let now = Math.floor(Date.now() / 1000);
-                        let remaining = now - timer_start;
+                        let diff = (now - timer_start);
+                        let max_val = $(this).attr('aria-valuemax');
+                        let remaining = Math.max((max_val - diff), 0)
+                        console.log()
                         if (remaining > 0) {
-                            let min = remaining / 60;
-                            let sec = remaining % 60;
-                            $(this).css("width", 100 * (remaining / $(this).attr("aria-valuemax")));
-                            $(this).attr("aria-valuenow", remaining);
+                            let min = Math.floor(remaining / 60);
+                            let sec = Math.floor(remaining % 60);
+                            $(this).css("width", 100 * (diff / max_val) + "%");
+                            $(this).attr("aria-valuenow", diff);
                             $(this).siblings("small").first().html(min + ":" + sec);
+                        } else {
+                            $(this).css("width", "100%");
+                            $(this).attr("aria-valuenow", max_val);
+                            $(this).siblings("small").first().html("0:0");
                         }
                     }
                 });
             }
-            setInterval(timer_handler, 100);
+            setInterval(timer_handler, 1000);
         };
     </script>
 </head>
