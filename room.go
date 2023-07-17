@@ -57,8 +57,7 @@ func CreateRoom() Room {
 	// Create room
 	new_room := Room{Id: name, Users: make(map[string]Connection), Timers: make(map[string]Timer)}
 	rooms[name] = new_room
-	new_room.CreateTimer("test1", 10)
-	new_room.CreateTimer("test2", 62)
+	new_room.CreateTimer("Timer", 10)
 	return new_room
 }
 
