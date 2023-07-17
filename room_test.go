@@ -16,18 +16,20 @@ func (conn *MockConnection) WriteMessage(msg int, data []byte) error {
 }
 
 func TestEmptyRoom(t *testing.T) {
+	initRooms()
 
 	if len(rooms) > 0 {
-		t.Errorf("woaw")
+		t.Error("Should have no rooms")
 	}
 }
 
 func TestCreatingRoom(t *testing.T) {
 
-	room := getRoom("test")
+	room := CreateRoom()
 
-	if room.Id != "test" {
-		t.Errorf("woaw")
+	r, found := getRoom(room.Id)
+	if !found || r.Id != room.Id {
+		t.Error("Room not found or wrong ID")
 	}
 }
 
@@ -35,11 +37,11 @@ func TestAddUser(t *testing.T) {
 
 	m := &MockConnection{}
 
-	room := getRoom("test")
+	room := CreateRoom()
 	room.AddUser("user", m)
 
 	if len(room.Users) != 1 {
-		t.Errorf("woaw")
+		t.Errorf("Expected 1 user, got %d", len(room.Users))
 	}
 }
 
@@ -49,11 +51,11 @@ func TestAddUsers(t *testing.T) {
 	m1 := &MockConnection{}
 	m2 := &MockConnection{}
 
-	room := getRoom("test")
+	room := CreateRoom()
 	room.AddUser("user1", m1)
 	room.AddUser("user2", m2)
 
 	if len(room.Users) != 2 {
-		t.Error("Number of users: ", len(room.Users))
+		t.Errorf("Expected 2 users, got %d", len(room.Users))
 	}
 }
