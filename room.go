@@ -21,7 +21,7 @@ type Timer struct {
 type Room struct {
 	Id     string
 	Users  map[string]Connection
-	Timers map[string]Timer
+	Timers map[string]*Timer
 }
 
 var rooms map[string]Room
@@ -55,7 +55,7 @@ func CreateRoom() Room {
 	}
 
 	// Create room
-	new_room := Room{Id: name, Users: make(map[string]Connection), Timers: make(map[string]Timer)}
+	new_room := Room{Id: name, Users: make(map[string]Connection), Timers: make(map[string]*Timer)}
 	rooms[name] = new_room
 	new_room.CreateTimer("Timer", 10)
 	return new_room
@@ -97,7 +97,7 @@ func (room *Room) RemoveUser(user string) {
 }
 
 func (room *Room) CreateTimer(name string, dur uint32) {
-	room.Timers[name] = Timer{Time: dur, Start: time.Unix(0, 0)}
+	room.Timers[name] = &Timer{Time: dur, Start: time.Unix(0, 0)}
 	room.Broadcast(fmt.Sprintf("timer %d 0 %s", dur, name))
 }
 
