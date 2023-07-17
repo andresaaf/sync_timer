@@ -14,7 +14,7 @@ type Connection interface {
 }
 
 type Timer struct {
-	Time  time.Duration
+	Time  uint32
 	Start time.Time
 }
 
@@ -38,7 +38,7 @@ func getRoom(room string) (Room, bool) {
 	return r, found
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+var room_letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
 
 func CreateRoom() Room {
 	// Generate name
@@ -46,7 +46,7 @@ func CreateRoom() Room {
 	for {
 		b := make([]rune, 5)
 		for i := range b {
-			b[i] = letters[rand.Intn(len(letters))]
+			b[i] = room_letters[rand.Intn(len(room_letters))]
 		}
 		name = string(b)
 		if _, found := rooms[name]; !found {
@@ -57,6 +57,7 @@ func CreateRoom() Room {
 	// Create room
 	new_room := Room{Id: name, Users: make(map[string]Connection), Timers: make(map[string]Timer)}
 	rooms[name] = new_room
+	new_room.CreateTimer("Timer", 10)
 	return new_room
 }
 
@@ -91,13 +92,13 @@ func (room *Room) RemoveUser(user string) {
 		// Remove room
 		delete(rooms, user)
 	} else {
-		room.Broadcast(fmt.Sprintf("leave %s", user))
+		room.Broadcast(fmt.Sprintf("part %s", user))
 	}
 }
 
-func (room *Room) CreateTimer(name string) {
-	room.Timers[name] = Timer{Time: time.Duration(0), Start: time.Unix(0, 0)}
-	room.Broadcast(fmt.Sprintf("new %s", name))
+func (room *Room) CreateTimer(name string, dur uint32) {
+	room.Timers[name] = Timer{Time: dur, Start: time.Unix(0, 0)}
+	room.Broadcast(fmt.Sprintf("timer %d 0 %s", dur, name))
 }
 
 func (room *Room) RemoveTimer(name string) {
@@ -106,14 +107,16 @@ func (room *Room) RemoveTimer(name string) {
 		return
 	}
 	delete(room.Timers, name)
+	room.Broadcast(fmt.Sprintf("del %s", name))
 }
 
-func (room *Room) SetTime(name string, sec time.Duration) {
+func (room *Room) SetTime(name string, sec uint32) {
 	timer, ok := room.Timers[name]
 	if !ok {
 		return
 	}
 	timer.Time = sec
+	room.Broadcast(fmt.Sprintf("set %d %s", sec, name))
 }
 
 func (room *Room) StartTimer(name string) {
@@ -123,7 +126,7 @@ func (room *Room) StartTimer(name string) {
 	}
 	start_time := time.Now()
 	timer.Start = start_time
-	room.Broadcast(fmt.Sprintf("start %s %d", name, start_time.Unix()))
+	room.Broadcast(fmt.Sprintf("start %d %s", start_time.Unix(), name))
 }
 
 func (room *Room) StopTimer(name string) {

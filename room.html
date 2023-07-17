@@ -16,10 +16,36 @@
         integrity="sha256-tG5mcZUtJsZvyKAxYLVXrmjKBVLd6VpVccqz/r4ypFE=" crossorigin="anonymous"></script>
 
     <script type="text/javascript">
+        const TimerItem = ({ name, time, run }) => `
+            <div id="tim_${name}">
+                <div class="row mb-3">
+                    <div class="h1">${name}</div>
+                    <div class="h2">
+                        <svg class="bi" width="1em" height="1em">
+                            <use href="#play"></use>
+                        </svg>
+                        <svg class="bi" width="1em" height="1em">
+                            <use href="#stop"></use>
+                        </svg>
+                        <svg class="bi float-end" width="1em" height="1em">
+                            <use href="#delete"></use>
+                        </svg>
+                    </div>
+                </div>
+                <div class="row mb-3 text-center">
+                    <div class="progress position-relative">
+                        <div class="progress-bar" data-run="${run}" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="${time}"></div>
+                        <small class="justify-content-center d-flex position-absolute w-100">${time}</small>
+                    </div>                
+                </div>
+            </div>
+            `;
+
         window.onload = function () {
             var conn;
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
+            var sync = 0;
 
             if (window["WebSocket"]) {
                 conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
@@ -31,10 +57,115 @@
                 };
                 conn.onmessage = function (evt) {
                     console.log(evt.data);
+                    const msg = evt.data.split(' ');
+                    if (msg.length == 0) return;
+                    switch (msg[0]) {
+                        case "join":
+                        case "part":
+                            console.log("User join/leave")
+                            break;
+                        case "sync":
+                            if (msg.length == 1) return;
+                            let sync_time = parseInt(msg[1]);
+                            sync = Math.floor(Date.now() / 1000) - sync_time;
+                            console.log("diff: ", sync)
+                            break;
+                        case "timer":
+                            if (msg.length < 4) return;
+                            if ($("#" + msg[3]).length != 0) { console.log("Error! Timer already exists"); }
+                            var timer_time = parseInt(msg[1]);
+                            var timer_start = parseInt(msg[2]);
+                            $("#timer_list").append(TimerItem({ name: msg[3], time: timer_time, run: timer_start }));
+
+                            $("#tim_" + msg[3] + " svg").on('click', function (ev) {
+                                let func = $(this).children().first().attr('href');
+                                switch (func) {
+                                    case "#play":
+                                    case "#reset":
+                                        conn.send("start " + msg[3]);
+                                        break;
+                                    case "#stop":
+                                        conn.send("stop " + msg[3]);
+                                        break;
+                                    case "#delete":
+                                        conn.send("del " + msg[3]);
+                                        break;
+                                }
+                            });
+                            break;
+                        case "del":
+                            if (msg.length == 1) return;
+                            $("#tim_" + msg[1]).remove();
+                            break;
+                        case "set":
+                            if (msg.length < 2) return;
+                            var timer_time = parseInt(msg[1]);
+                            $("#tim_" + msg[2] + " .progress-bar").attr('aria-valuemax', timer_time);
+                            break;
+                        case "start":
+                            if (msg.length < 3) return;
+                            $("#tim_" + msg[2] + " .progress-bar").data('run', parseInt(msg[1]));
+                            break;
+                        case "stop":
+                            if (msg.length == 1) return;
+                            $("#tim_" + msg[1] + " .progress-bar").data('run', 0);
+                            break;
+                    }
                 };
             } else {
-                console.log("Your browser does not support WebSockets.");
+                $('#timer_list').html('<h1>Your browser does not support WebSockets.</h1>');
             }
+
+            function str_pad_left(string, pad, length) {
+                return (new Array(length + 1).join(pad) + string).slice(-length);
+            }
+
+            function timer_handler() {
+                $(".progress-bar").each(function () {
+                    let timer_start = $(this).data('run');
+                    if ($(this).data('run') != 0) {
+                        let now = Math.floor(Date.now() / 1000);
+                        let diff = (now - timer_start);
+                        let max_val = $(this).attr('aria-valuemax');
+                        let remaining = Math.max((max_val - diff), 0);
+                        if (remaining > 0) {
+                            let min = str_pad_left(Math.floor(remaining / 60), '0', 2);
+                            let sec = str_pad_left(Math.floor(remaining % 60), '0', 2);
+                            $(this).css("width", 100 * (diff / max_val) + "%");
+                            $(this).attr("aria-valuenow", diff);
+                            $(this).siblings("small").first().html(min + ":" + sec);
+                        } else {
+                            $(this).css("width", "100%");
+                            $(this).attr("aria-valuenow", max_val);
+                            $(this).siblings("small").first().html("00:00");
+                        }
+                    }
+                    else {
+                        let max_val = $(this).attr('aria-valuemax');
+                        let min = str_pad_left(Math.floor(max_val / 60), '0', 2);
+                        let sec = str_pad_left(Math.floor(max_val % 60), '0', 2);
+                        $(this).css("width", "0%");
+                        $(this).attr("aria-valuenow", 0);
+                        $(this).siblings("small").first().html(min + ":" + sec);
+                    }
+                });
+            }
+            setInterval(timer_handler, 100);
+
+            $('#TimerModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                var cmd = button.data('bs-cmd');
+                var modal = $(this);
+                if (cmd == "new") {
+                    modal.find('.modal-title').text('Create new timer')
+                    modal.find('#timer-name').attr('readonly', false);
+                }
+            });
+
+            $('#ModalSave').on('click', function() {
+                conn.send("new " + $('#timer-time').val() + " " + $('#timer-name').val());
+                $('#TimerModal').modal('hide');
+            });
         };
     </script>
 </head>
@@ -108,17 +239,53 @@
         </ul>
     </div>
 
-    <main id="main" class="m-auto w-75 h-100">
-        <div class="row mb-3 text-center">
-            <div class="col-lg-1 themed-grid-col">Timer 1</div>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-circle-fill">
+        <symbol id="play" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z" />
+        </symbol>
+        <symbol id="stop" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.5 5A1.5 1.5 0 0 0 5 6.5v3A1.5 1.5 0 0 0 6.5 11h3A1.5 1.5 0 0 0 11 9.5v-3A1.5 1.5 0 0 0 9.5 5h-3z" />
+        </symbol>
+        <symbol id="reset" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-4.79-2.907L8.5 7.028V5.5a.5.5 0 0 0-.79-.407L5 7.028V5.5a.5.5 0 0 0-1 0v5a.5.5 0 0 0 1 0V8.972l2.71 1.935a.5.5 0 0 0 .79-.407V8.972l2.71 1.935A.5.5 0 0 0 12 10.5v-5a.5.5 0 0 0-.79-.407z" />
+        </symbol>
+        <symbol id="delete" viewBox="0 0 16 16">
+            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+        </symbol>
+    </svg>
+    <main id="main" class="m-auto w-25 h-100">
+        <div id="topbar">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#TimerModal" data-bs-cmd="new">New Timer</button>
         </div>
-        <div class="row mb-3 text-center">
-            <div class="progress">
-                <div class="progress-bar" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0"
-                    aria-valuemax="100">25%</div>
-            </div>
+        <div id="timer_list">
         </div>
     </main>
+    <div class="modal fade" id="TimerModal" tabindex="-1" aria-labelledby="TimerModalTitle" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="TimerModalTitle">Timer</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="timer-name" class="col-form-label">Timer Name:</label>
+                            <input type="text" class="form-control" id="timer-name">
+                        </div>
+                        <div class="mb-3">
+                            <label for="timer-time" class="col-form-label">Time (s):</label>
+                            <input type="text" class="form-control" id="timer-time">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="ModalSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
