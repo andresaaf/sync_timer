@@ -71,7 +71,7 @@
                         case "sync":
                             if (msg.length == 1) return;
                             let sync_time = parseInt(msg[1]);
-                            sync = Math.floor(Date.now() / 1000) - sync_time;
+                            sync = Date.now() - sync_time;
                             console.log("diff: ", sync)
                             break;
                         case "timer":
@@ -129,15 +129,16 @@
                 $(".progress-bar").each(function () {
                     let timer_start = $(this).data('run');
                     if ($(this).data('run') != 0) {
-                        let now = Math.floor(Date.now() / 1000);
-                        let diff = (now - timer_start);
+                        let now = Date.now();
+                        let diff_ms = (now - timer_start);
+                        let diff_s = diff_ms/1000;
                         let max_val = $(this).attr('aria-valuemax');
-                        let remaining = Math.max((max_val - diff), 0);
+                        let remaining = Math.max((max_val - diff_s), 0);
                         if (remaining > 0) {
                             let min = str_pad_left(Math.floor(remaining / 60), '0', 2);
                             let sec = str_pad_left(Math.floor(remaining % 60), '0', 2);
-                            $(this).css("width", 100 * (diff / max_val) + "%");
-                            $(this).attr("aria-valuenow", diff);
+                            $(this).css("width", 100 * (diff_s / max_val) + "%");
+                            $(this).attr("aria-valuenow", diff_s);
                             $(this).siblings("small").first().html(min + ":" + sec);
                         } else {
                             $(this).css("width", "100%");

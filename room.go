@@ -63,7 +63,7 @@ func CreateRoom() Room {
 
 func (room *Room) AddUser(user string, conn Connection) {
 	// Send current timers
-	conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("sync %d", time.Now().Unix())))
+	conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("sync %d", time.Now().UnixMilli())))
 	for name, timer := range room.Timers {
 		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("timer %d %d %s", timer.Time, timer.Start.Unix(), name)))
 	}
@@ -126,7 +126,7 @@ func (room *Room) StartTimer(name string) {
 	}
 	start_time := time.Now()
 	timer.Start = start_time
-	room.Broadcast(fmt.Sprintf("start %d %s", start_time.Unix(), name))
+	room.Broadcast(fmt.Sprintf("start %d %s", start_time.UnixMilli(), name))
 }
 
 func (room *Room) StopTimer(name string) {
