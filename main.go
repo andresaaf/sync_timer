@@ -200,9 +200,17 @@ type Config struct {
 	} `yaml:"listener"`
 }
 
+var https_port uint16
+
 func redirect(w http.ResponseWriter, req *http.Request) {
+	spl := strings.Split(req.Host, ":")
+	host := req.Host
+	if len(spl) == 2 {
+		host = spl[0]
+	}
+
 	http.Redirect(w, req,
-		"https://"+req.Host+req.URL.String(),
+		fmt.Sprintf("https://%s:%d%s", host, https_port, req.URL.String()),
 		http.StatusMovedPermanently)
 }
 
@@ -228,12 +236,13 @@ func main() {
 		log.Fatal(err)
 	}
 	if cfg.Listener.Secure {
-		err = http.ListenAndServeTLS(fmt.Sprintf(":%d", cfg.Listener.HttpPort), cfg.Listener.Cert, cfg.Listener.Key, nil)
-	} else {
 		if cfg.Listener.Redirect {
+			https_port = cfg.Listener.HttpsPort
 			go http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.HttpPort), http.HandlerFunc(redirect))
 		}
-		err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.HttpsPort), nil)
+		err = http.ListenAndServeTLS(fmt.Sprintf(":%d", cfg.Listener.HttpsPort), cfg.Listener.Cert, cfg.Listener.Key, nil)
+	} else {
+		err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.HttpPort), nil)
 	}
 
 	if err != nil {
