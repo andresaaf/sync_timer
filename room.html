@@ -49,7 +49,12 @@
 
             // WebSocket handling
             if (window["WebSocket"]) {
-                conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
+                if (location.protocol == 'https:') {
+                    conn = new WebSocket("wss://" + document.location.host + "/ws/{{.Room}}");
+                } else {
+                    conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
+                }
+                
                 conn.onclose = function (evt) {
                     console.log(evt.data);
                 };
