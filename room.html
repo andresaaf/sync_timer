@@ -47,6 +47,7 @@
             var log = document.getElementById("log");
             var sync = 0;
 
+            // WebSocket handling
             if (window["WebSocket"]) {
                 conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
                 conn.onclose = function (evt) {
@@ -116,6 +117,7 @@
                 $('#timer_list').html('<h1>Your browser does not support WebSockets.</h1>');
             }
 
+            // Timer countdown
             function str_pad_left(string, pad, length) {
                 return (new Array(length + 1).join(pad) + string).slice(-length);
             }
@@ -152,6 +154,7 @@
             }
             setInterval(timer_handler, 100);
 
+            // Timer creation
             $('#TimerModal').on('show.bs.modal', function (event) {
                 var button = $(event.relatedTarget);
                 var cmd = button.data('bs-cmd');
@@ -166,6 +169,28 @@
                 conn.send("new " + $('#timer-time').val() + " " + $('#timer-name').val());
                 $('#TimerModal').modal('hide');
             });
+
+            // WakeLock (only works on HTTPS)
+            if ("wakeLock" in navigator) {
+                let wakeLock = null;
+
+                const requestWakeLock = async () => {
+                    try {
+                        wakeLock = await navigator.wakeLock.request();
+                    } catch (err) {
+                        console.error(`${err.name}, ${err.message}`);
+                    }
+                };
+
+                document.addEventListener('visibilitychange', () => {
+                    if (wakeLock !== null && document.visibilityState === 'visible') {
+                        requestWakeLock();
+                    }
+                });
+
+                // Request a screen wake lock
+                requestWakeLock();
+            }
         };
     </script>
 </head>
@@ -262,7 +287,7 @@
         </div>
     </main>
     <div class="modal fade" id="TimerModal" tabindex="-1" aria-labelledby="TimerModalTitle" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="TimerModalTitle">Timer</h1>
@@ -277,6 +302,17 @@
                         <div class="mb-3">
                             <label for="timer-time" class="col-form-label">Time (s):</label>
                             <input type="text" class="form-control" id="timer-time">
+                        </div>
+                        <div class="input-group mb-3">
+                            <div class="input-group-prepend">
+                                <label class="input-group-text" for="timer-sound">Sound</label>
+                            </div>
+                            <select class="custom-select" id="timer-sound">
+                                <option value="0" selected>None</option>
+                                <option value="1">Medium Bell</option>
+                                <option value="2">Small Bell</option>
+                                <option value="3">Whistle</option>
+                            </select>
                         </div>
                     </form>
                 </div>

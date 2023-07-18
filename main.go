@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"html/template"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
@@ -10,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"gopkg.in/yaml.v2"
 )
 
 type JoinRequest struct {
@@ -186,6 +189,15 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "home.html")
 }
 
+type Config struct {
+	Listener struct {
+		Port   uint16 `yaml:"port"`
+		Secure bool   `yaml:"secure"`
+		Cert   string `yaml:"cert"`
+		Key    string `yaml:"key"`
+	} `yaml:"listener"`
+}
+
 func main() {
 	initRooms()
 
@@ -195,7 +207,25 @@ func main() {
 	http.HandleFunc("/room/", serveRoom)
 	http.HandleFunc("/", serveHome)
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets/"))))
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	http.Handle("/sound/", http.StripPrefix("/sound/", http.FileServer(http.Dir("sounds/"))))
+
+	f, err := ioutil.ReadFile("config.yml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var cfg Config
+	err = yaml.Unmarshal(f, &cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if cfg.Listener.Secure {
+		err = http.ListenAndServeTLS(fmt.Sprintf(":%d", cfg.Listener.Port), cfg.Listener.Cert, cfg.Listener.Key, nil)
+	} else {
+		err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.Port), nil)
+	}
+
+	if err != nil {
 		log.Fatal(err)
 	}
 }
