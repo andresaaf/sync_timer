@@ -43,8 +43,6 @@
 
         window.onload = function () {
             var conn;
-            var msg = document.getElementById("msg");
-            var log = document.getElementById("log");
             var sync = 0;
 
             // WebSocket handling
@@ -54,7 +52,7 @@
                 } else {
                     conn = new WebSocket("ws://" + document.location.host + "/ws/{{.Room}}");
                 }
-                
+
                 conn.onclose = function (evt) {
                     console.log(evt.data);
                 };

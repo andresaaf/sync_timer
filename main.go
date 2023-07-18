@@ -191,11 +191,19 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 type Config struct {
 	Listener struct {
-		Port   uint16 `yaml:"port"`
-		Secure bool   `yaml:"secure"`
-		Cert   string `yaml:"cert"`
-		Key    string `yaml:"key"`
+		HttpPort  uint16 `yaml:"http_port"`
+		HttpsPort uint16 `yaml:"https_port"`
+		Secure    bool   `yaml:"secure"`
+		Redirect  bool   `yaml:"redirect"`
+		Cert      string `yaml:"cert"`
+		Key       string `yaml:"key"`
 	} `yaml:"listener"`
+}
+
+func redirect(w http.ResponseWriter, req *http.Request) {
+	http.Redirect(w, req,
+		"https://"+req.Host+req.URL.String(),
+		http.StatusMovedPermanently)
 }
 
 func main() {
@@ -220,9 +228,12 @@ func main() {
 		log.Fatal(err)
 	}
 	if cfg.Listener.Secure {
-		err = http.ListenAndServeTLS(fmt.Sprintf(":%d", cfg.Listener.Port), cfg.Listener.Cert, cfg.Listener.Key, nil)
+		err = http.ListenAndServeTLS(fmt.Sprintf(":%d", cfg.Listener.HttpPort), cfg.Listener.Cert, cfg.Listener.Key, nil)
 	} else {
-		err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.Port), nil)
+		if cfg.Listener.Redirect {
+			go http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.HttpPort), http.HandlerFunc(redirect))
+		}
+		err = http.ListenAndServe(fmt.Sprintf(":%d", cfg.Listener.HttpsPort), nil)
 	}
 
 	if err != nil {
